@@ -140,5 +140,171 @@ When a new program starts and tries to load a DLL, the Windows Loader will first
 ## Protecting with COW
 So, `kernel32.dll` pages are mapped to all running processes essentially, with one physical copy. This raises an interesting question: what happens if one process overrides bytes in one of those shared memory pages? Let's find out!
 
+```c
+#include <stdio.h>
+#include <Windows.h>
 
+static
+BOOL
+GetPageProtections(
+	PVOID pvAddr,
+	PMEMORY_BASIC_INFORMATION ptMemInfo
+)
+{
+	BOOL bResult = FALSE;
 
+	// Query memory
+	if (0 == VirtualQuery(pvAddr, ptMemInfo, sizeof(*ptMemInfo)))
+	{
+		printf("VirtualQuery() failed (LastError=%lu).\n", GetLastError());
+		goto lblCleanup;
+	}
+
+	// Success
+	bResult = TRUE;
+
+lblCleanup:
+
+	// Return result
+	return bResult;
+}
+
+static
+BOOL
+PrintPageProtections(
+	PVOID pvAddr
+)
+{
+	BOOL bResult = FALSE;
+	MEMORY_BASIC_INFORMATION tMemInfo = { 0 };
+
+	// Print page protections
+	if (!GetPageProtections(pvAddr, &tMemInfo))
+	{
+		printf("GetPageProtections() failed.\n");
+		goto lblCleanup;
+	}
+	printf("prot(0x%p) = %.8x\n", tMemInfo.BaseAddress, tMemInfo.Protect);
+
+	// Success
+	bResult = TRUE;
+
+lblCleanup:
+
+	// Return result
+	return bResult;
+}
+
+static
+BOOL
+MakePageRWX(
+	PVOID pvAddr
+)
+{
+	BOOL bResult = FALSE;
+	MEMORY_BASIC_INFORMATION tMemInfo = { 0 };
+	DWORD dwOldProt = 0;
+
+	// Query memory
+	if (!(GetPageProtections(pvAddr, &tMemInfo)))
+	{
+		printf("GetPageProtections() failed.\n");
+		goto lblCleanup;
+	}
+
+	// Make page RWX
+	if (!VirtualProtect(tMemInfo.BaseAddress, 1, PAGE_EXECUTE_READWRITE, &dwOldProt))
+	{
+		printf("VirtualProtect() failed (LastError=%lu).\n", GetLastError());
+		goto lblCleanup;
+	}
+
+	// Success
+	bResult = TRUE;
+
+lblCleanup:
+
+	// Return result
+	return bResult;
+}
+
+int
+main()
+{
+	BOOL bResult = FALSE;
+	HMODULE hKernel32 = NULL;
+	FARPROC pfnExitProcess = NULL;
+
+	// Get kernel32 handle
+	hKernel32 = GetModuleHandleW(L"kernel32.dll");
+	if (NULL == hKernel32)
+	{
+		printf("GetModuleHandleW() failed (LastError=%lu).\n", GetLastError());
+		goto lblCleanup;
+	}
+
+	// Get one function address as an example
+	pfnExitProcess = GetProcAddress(hKernel32, "ExitProcess");
+	if (NULL == pfnExitProcess)
+	{
+		printf("GetProcAddress() failed (LastError=%lu).\n", GetLastError());
+		goto lblCleanup;
+	}
+
+	// Print page protections
+	if (!PrintPageProtections(pfnExitProcess))
+	{
+		printf("PrintPageProtections() failed.\n");
+		goto lblCleanup;
+	}
+
+	// Make page RWX
+	if (!MakePageRWX(pfnExitProcess))
+	{
+		printf("MakePageRWX() failed.\n");
+		goto lblCleanup;
+	}
+
+	// Print page protections
+	if (!PrintPageProtections(pfnExitProcess))
+	{
+		printf("PrintPageProtections() failed.\n");
+		goto lblCleanup;
+	}
+
+	// Patch one byte
+	*((PBYTE)pfnExitProcess) ^= 1;
+
+	// Print page protections
+	if (!PrintPageProtections(pfnExitProcess))
+	{
+		printf("PrintPageProtections() failed.\n");
+		goto lblCleanup;
+	}
+
+	// Patch one byte again
+	*((PBYTE)pfnExitProcess) ^= 1;
+
+	// Success
+	bResult = TRUE;
+
+lblCleanup:
+
+	// Indicate result
+	return bResult ? 0 : -1;
+}
+```
+
+The code is quite simple:
+1. The `GetPageProtections` function simply fetches page protections (in fact, the entire `MEMORY_BASIC_INFORMATION` structure) using the [VirtualQuery](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-virtualquery) API.
+2. The `PrintPageProtections` function simply calls `GetPageProtections` and prints the page base address and its page protections.
+3. The `MakePageRWX` function makes a page readable, writable and executable (`RWX`).
+4. The `main` function fetches the `kernel32!ExitProcess` function (which obviously resides in the `kernel32.dll` shared memory executable section), prints its page protections, makes it writable, prints its page protections, patches one byte (`XOR`ing with 1), prints its page protections again and then restores the byte and quits.
+
+Let's run it:
+
+```
+prot(0x76D56000) = 00000020
+prot(0x76D56000) = 00000080
+prot(0x76D56000) = 00000040
+```
