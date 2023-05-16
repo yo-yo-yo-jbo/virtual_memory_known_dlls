@@ -1,12 +1,12 @@
 # Virtual memory and KnownDlls
-
-
-
+Virtual Memory is instrumental to many native security concepts, as well as an important concept for modern operating systems.  
+In this blogpost, I'd like to describe virtual memory and how it helps with performance while still enforcing cross-process security.
 
 ## Introduction to virtual memory
 [Virtual Memory](https://en.wikipedia.org/wiki/Virtual_memory) is a concept every programmer must know.  
 The idea supports the concept of program address spaces - each program "believes" it has the entire memory to itself.  
-This is also why two programs that run in parallel might have different values for the same address (POSIX):
+This is also why two programs that run in parallel might have different values for the same address.  
+Here's a tiny program to demonstate this concept (I've done it for `POSIX` systems like Linux or macOS, but the concept is still true in Windows):
 
 ```c
 #include <stdio.h>
@@ -315,7 +315,7 @@ Something magical has happened!
 - After patching one byte, the page protections changed to `0x40` - the expected value of `PAGE_EXECUTE_READWRITE`.
 
 Why did we get `PAGE_EXECUTE_WRITECOPY` and how did the page protections change after patching one byte?  
-This mechanism is called `Copy-On-Write` (or `COW` for short). Let's see what MSDN says about `PAGE_EXECUTE_WRITECOPY`:
+This mechanism is called `Copy-on-Write` (or `COW` for short). Let's see what MSDN says about `PAGE_EXECUTE_WRITECOPY`:
 
 > Enables execute, read-only, or copy-on-write access to a mapped view of a file mapping object. An attempt to write to a committed copy-on-write page results in a private copy of the page being made for the process. The private page is marked as PAGE_EXECUTE_READWRITE, and the change is written to the new page.
 
@@ -365,3 +365,11 @@ And after:
 ```
 
 With the help of virtual memory, the kernel can simply create a private copy without changing the virtual memory address in the patcher process.
+
+## Summary
+In this blogpost, we've described virtual memory, Copy-on-Write and how it's related to KnwonDlls.  
+I think these are important concepts for all modern operating systems (not just Windows). In fact, COW was even a source of several interesting vulnerabilities, for example [Dirty COW](https://en.wikipedia.org/wiki/Dirty_COW) that was a race-condition in the COW mechanism.
+
+Stay tuned!
+
+Jonathan Bar Or
