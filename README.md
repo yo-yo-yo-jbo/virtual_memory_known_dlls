@@ -3,7 +3,7 @@
 
 
 
-## Introduction to memory
+## Introduction to virtual memory
 [Virtual Memory](https://en.wikipedia.org/wiki/Virtual_memory) is a concept every programmer must know.  
 The idea supports the concept of program address spaces - each program "believes" it has the entire memory to itself.  
 This is also why two programs that run in parallel might have different values for the same address (POSIX):
@@ -135,4 +135,10 @@ HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\KnownDLLs
 ```
 
 Upon boot, this registry key will be read by the session manager (in `smss.exe`). Each DLL will be mapped into a `Section`, which is the Windows object type that represents memory-mapping. You can even view these sections with [Winobj](https://learn.microsoft.com/en-us/sysinternals/downloads/winobj) on a live system.  
-When a new program starts and tries to load a DLL, the Windows Loader will first look if the requested DLL is a `KnownDll`. If it is - instead of reading the DLL contents from disk, it will simply load it from the mapped section. Since those DLLs are frequently used, it's assumed that most pages of that DLL are going to be `paged-in`, which means the operating system saved a lot of disk operations that are known to be slow, as well as saving memory (since the DLL is going to be mapped to multiple processes and only have one copy in physical memory).
+When a new program starts and tries to load a DLL, the Windows Loader will first look if the requested DLL is a `KnownDll`. If it is - instead of reading the DLL contents from disk, it will simply load it from the mapped section. Since those DLLs are frequently used, it's assumed that most pages of that DLL are going to be `paged-in`, which means the operating system saved a lot of disk operations that are known to be slow, as well as saving memory (since the DLL is going to be mapped to multiple processes and only have one copy in physical memory).  
+
+## Protecting with COW
+So, `kernel32.dll` pages are mapped to all running processes essentially, with one physical copy. This raises an interesting question: what happens if one process overrides bytes in one of those shared memory pages? Let's find out!
+
+
+
