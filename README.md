@@ -60,3 +60,35 @@ How is this achieved? The idea is that memory addresses (like `0x560fe8d872a0`) 
 4. If the RAM is full, it means another page needs to be removed from RAM into the hard drive to make room for the newly fetched page. This is called `Paging-out`.
 5. There are sophisciated algorithms to determine which pages are supposed to be paged-out first; most of them rely on paging out the `Least Recently Used (LRU)` pages; you can read more [here](https://en.wikipedia.org/wiki/Cache_replacement_policies).
 
+With this, we can see many benefits of virtual memory:
+- Essentially supports implementation of memory seperation between processes, which is essential for security.
+- Supports running multiple processes in parallel.
+- Supports enforcing page security (whether pages can be read, written to, or executed from, or in short: RWX).
+
+## Virtual Memory and KnwonDlls
+Having virtual memory is great not only for security reasons, but also for performance reasons.  
+Let's assume we have two processes that want to share a big chunk of data; instead of copying that data to both address spaces, we can just *map* that memory. This means we have one physical copy of the data, referenced twice:
+
+```
+
+                              +----------------+
+                              |                |
+                              | Shared data    |  (Physical memory)
+                              |                |
+                              +----------------+
+                                     |
+                                     |
+               ----------------------------------------------------
+               |                                                  |
+               | (Virtual memory address 0xFF991337)              |  (Virtual memory address 0x00AA1234)
+               |                                                  |
+        +----------------+                                 +----------------+
+        |                |                                 |                |
+        |  Process 1     |                                 |  Process 2     |
+        |                |                                 |                |
+        +----------------+                                 +----------------+
+```
+
+Now both processes share the same data; note that the data is mapped to *different virtual memory addresses*, so it's essential that data does not contain any pointers.  
+This is used extensively by modern operating systems for performance, for example, let's examine Windows.  
+On Windows 
