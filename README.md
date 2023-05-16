@@ -91,4 +91,48 @@ Let's assume we have two processes that want to share a big chunk of data; inste
 
 Now both processes share the same data; note that the data is mapped to *different virtual memory addresses*, so it's essential that data does not contain any pointers.  
 This is used extensively by modern operating systems for performance, for example, let's examine Windows.  
-On Windows 
+On Windows, there are a set of DLLs known as `KnownDlls`. Those are configurable in the registry:
+
+```shell
+C:\>reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\KnownDLLs"
+
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\KnownDLLs
+    *kernel32    REG_SZ    kernel32.dll
+    _wow64cpu    REG_SZ    wow64cpu.dll
+    _wowarmhw    REG_SZ    wowarmhw.dll
+    _xtajit    REG_SZ    xtajit.dll
+    advapi32    REG_SZ    advapi32.dll
+    clbcatq    REG_SZ    clbcatq.dll
+    combase    REG_SZ    combase.dll
+    COMDLG32    REG_SZ    COMDLG32.dll
+    coml2    REG_SZ    coml2.dll
+    DifxApi    REG_SZ    difxapi.dll
+    gdi32    REG_SZ    gdi32.dll
+    gdiplus    REG_SZ    gdiplus.dll
+    IMAGEHLP    REG_SZ    IMAGEHLP.dll
+    IMM32    REG_SZ    IMM32.dll
+    MSCTF    REG_SZ    MSCTF.dll
+    MSVCRT    REG_SZ    MSVCRT.dll
+    NORMALIZ    REG_SZ    NORMALIZ.dll
+    NSI    REG_SZ    NSI.dll
+    ole32    REG_SZ    ole32.dll
+    OLEAUT32    REG_SZ    OLEAUT32.dll
+    PSAPI    REG_SZ    PSAPI.DLL
+    rpcrt4    REG_SZ    rpcrt4.dll
+    sechost    REG_SZ    sechost.dll
+    Setupapi    REG_SZ    Setupapi.dll
+    SHCORE    REG_SZ    SHCORE.dll
+    SHELL32    REG_SZ    SHELL32.dll
+    SHLWAPI    REG_SZ    SHLWAPI.dll
+    user32    REG_SZ    user32.dll
+    WLDAP32    REG_SZ    WLDAP32.dll
+    wow64    REG_SZ    wow64.dll
+    wow64base    REG_SZ    wow64base.dll
+    wow64con    REG_SZ    wow64con.dll
+    wow64win    REG_SZ    wow64win.dll
+    WS2_32    REG_SZ    WS2_32.dll
+    xtajit64    REG_SZ    xtajit64.dll
+```
+
+Upon boot, this registry key will be read by the session manager (in `smss.exe`). Each DLL will be mapped into a `Section`, which is the Windows object type that represents memory-mapping. You can even view these sections with [Winobj](https://learn.microsoft.com/en-us/sysinternals/downloads/winobj) on a live system.  
+When a new program starts and tries to load a DLL, the Windows Loader will first look if the requested DLL is a `KnownDll`. If it is - instead of reading the DLL contents from disk, it will simply load it from the mapped section. Since those DLLs are frequently used, it's assumed that most pages of that DLL are going to be `paged-in`, which means the operating system saved a lot of disk operations that are known to be slow, as well as saving memory (since the DLL is going to be mapped to multiple processes and only have one copy in physical memory).
