@@ -65,7 +65,7 @@ With this, we can see many benefits of virtual memory:
 - Supports running multiple processes in parallel.
 - Supports enforcing page security (whether pages can be read, written to, or executed from, or in short: RWX).
 
-## Virtual Memory and KnwonDlls
+## Virtual Memory and KnownDlls
 Having virtual memory is great not only for security reasons, but also for performance reasons.  
 Let's assume we have two processes that want to share a big chunk of data; instead of copying that data to both address spaces, we can just *map* that memory. This means we have one physical copy of the data, referenced twice:
 
