@@ -321,3 +321,47 @@ This mechanism is called `Copy-On-Write` (or `COW` for short). Let's see what MS
 
 This description is the essence of `Copy-On-Write` - sharable mapped pages (essentially `Sections` in Windows) have the `COW` bit turned on. When such a page is being written (which happens when we patch the byte), a private copy of it is created. This is an *important* security feature - without `COW`, patching `kernel32` code would affect all processes in the system!
 
+Let's illustrate how the memory layout looks like before the byte patching (but after making it `RWX`):
+```
+
+                              +----------------------+
+                              |                      |
+                              | kernel32!ExitProcess | (shared memory)
+                              |                      |
+                              +----------------------+
+                                     |
+                                     |
+               ----------------------------------------------------
+               |                                                  |
+               | (Virtual memory address 0x76D56000)              |  (Virtual memory address 0x76D56000)
+               |                                                  |
+        +----------------+                                 +----------------+
+        |                |                                 |                |
+        |  Legit process |                                 |  Patcher       |
+        |                |                                 |                |
+        +----------------+                                 +----------------+
+```
+
+And after:
+
+```
+
+        +----------------------+                             +----------------------+
+        |                      |                             |                      |
+        | kernel32!ExitProcess | (shared memory)             | kernel32!ExitProcess | (private copy)
+        |                      |                             |                      |
+        +----------------------+                             +----------------------+
+               |                                                  |
+               |                                                  |
+               |                                                  |
+               |                                                  |
+               | (Virtual memory address 0x76D56000)              |  (Virtual memory address 0x76D56000)
+               |                                                  |
+        +----------------+                                 +----------------+
+        |                |                                 |                |
+        |  Legit process |                                 |  Patcher       |
+        |                |                                 |                |
+        +----------------+                                 +----------------+
+```
+
+With the help of virtual memory, the kernel can simply create a private copy without changing the virtual memory address in the patcher process.
