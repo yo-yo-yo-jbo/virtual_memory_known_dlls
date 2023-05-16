@@ -367,7 +367,7 @@ And after:
 With the help of virtual memory, the kernel can simply create a private copy without changing the virtual memory address in the patcher process.
 
 ## Summary
-In this blogpost, we've described virtual memory, Copy-on-Write and how it's related to KnwonDlls.  
+In this blogpost, we've described virtual memory, Copy-on-Write and how it's related to KnownDlls.  
 I think these are important concepts for all modern operating systems (not just Windows). In fact, COW was even a source of several interesting vulnerabilities, for example [Dirty COW](https://en.wikipedia.org/wiki/Dirty_COW) that was a race-condition in the COW mechanism.
 
 Stay tuned!
