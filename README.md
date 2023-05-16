@@ -308,3 +308,16 @@ prot(0x76D56000) = 00000020
 prot(0x76D56000) = 00000080
 prot(0x76D56000) = 00000040
 ```
+
+Something magical has happened!
+- When we started, the page protections were `0x20`.  According to the [Memory Protection Constants MSDN page](https://learn.microsoft.com/en-us/windows/win32/Memory/memory-protection-constants), this is `PAGE_EXECUTE_READ`, as expected.
+- After changing the memory protections to `PAGE_EXECUTE_READWRITE` via the `MakePageRWX` function - the page protections changed to `0x80`! This is quite unexepcted since `PAGE_EXECUTE_READWRITE` is `0x40`. Well, `0x80` is `PAGE_EXECUTE_WRITECOPY`!
+- After patching one byte, the page protections changed to `0x40` - the expected value of `PAGE_EXECUTE_READWRITE`.
+
+Why did we get `PAGE_EXECUTE_WRITECOPY` and how did the page protections change after patching one byte?  
+This mechanism is called `Copy-On-Write` (or `COW` for short). Let's see what MSDN says about `PAGE_EXECUTE_WRITECOPY`:
+
+> Enables execute, read-only, or copy-on-write access to a mapped view of a file mapping object. An attempt to write to a committed copy-on-write page results in a private copy of the page being made for the process. The private page is marked as PAGE_EXECUTE_READWRITE, and the change is written to the new page.
+
+This description is the essence of `Copy-On-Write` - sharable mapped pages (essentially `Sections` in Windows) have the `COW` bit turned on. When such a page is being written (which happens when we patch the byte), a private copy of it is created. This is an *important* security feature - without `COW`, patching `kernel32` code would affect all processes in the system!
+
